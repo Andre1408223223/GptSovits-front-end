@@ -2,10 +2,133 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Home Page</title>
+    <title>GPT-SoVITS Inference</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #f9f9f9;
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+      }
+      .form-container {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+      }
+      label {
+        display: block;
+        margin-top: 1rem;
+        font-weight: bold;
+      }
+      textarea,
+      input,
+      select {
+        width: 100%;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        margin-top: 1rem;
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: #0077cc;
+        color: #fff;
+      }
+      .btn-secondary {
+        background: #e0e0e0;
+        color: #333;
+        margin-left: 0.5rem;
+      }
+      .settings {
+        display: none;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #ddd;
+      }
+      .feedback {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #0077cc;
+      }
+    </style>
   </head>
   <body>
-    <h1>Welcome to My Flask App</h1>
-    <p>This is the index page.</p>
+    <div class="form-container">
+      <form id="inferenceForm" enctype="multipart/form-data">
+        <label for="text">Input Text</label>
+        <textarea id="text" name="text" rows="4" required></textarea>
+
+        <div>
+          <button type="submit" id="sendBtn" class="btn-primary">
+            Generate
+          </button>
+          <button type="button" id="toggleSettings" class="btn-secondary">
+            More ▶
+          </button>
+        </div>
+
+        <div class="settings" id="settingsPanel">
+          <label for="refer_wav_path">Reference Audio</label>
+          <input
+            type="file"
+            id="refer_wav_path"
+            name="refer_wav_path"
+            accept="audio/*"
+          />
+          <!-- additional settings... -->
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+      </form>
+    </div>
+
+    <script>
+      // Toggle advanced settings
+      document
+        .getElementById("toggleSettings")
+        .addEventListener("click", () => {
+          const panel = document.getElementById("settingsPanel");
+          const btn = document.getElementById("toggleSettings");
+          const visible = panel.style.display === "block";
+          panel.style.display = visible ? "none" : "block";
+          btn.textContent = visible ? "More ▶" : "Less ◀";
+        });
+
+      // Handle form submission via Fetch to Flask backend
+      document
+        .getElementById("inferenceForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const form = document.getElementById("inferenceForm");
+          const formData = new FormData(form);
+
+          try {
+            const response = await fetch("/inference", {
+              method: "POST",
+              body: formData,
+            });
+            if (!response.ok) throw new Error("Network response was not ok");
+            const data = await response.json();
+            document.getElementById("feedback").textContent =
+              "Success: " + (data.message || "Audio generated");
+          } catch (err) {
+            document.getElementById("feedback").textContent =
+              "Error: " + err.message;
+          }
+        });
+    </script>
   </body>
 </html>
