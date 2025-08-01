@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 import json
 import os
-from flask import request
+from flask import request, send_file
 import requests
 
 # Create a Blueprint for this file
@@ -55,6 +55,20 @@ def synthesise():
     refer_audio_path = result.get("ref_audio")
     refer_gpt_sovits_path = f"../models/{model}/{refer_audio_path}"    
 
+
+    extra_refs_dir = result.get("extra_refs_folder")
+
+    # Collect extra reference audio files
+    supported_audio_exts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a']
+    extra_refs = []
+    
+    if extra_refs_dir and isinstance(extra_refs_dir, str) and os.path.exists(extra_refs_dir):
+        extra_refs = [
+            os.path.join(extra_refs_dir, f)
+            for f in os.listdir(extra_refs_dir)
+            if os.path.isfile(os.path.join(extra_refs_dir, f)) and any(f.endswith(ext) for ext in supported_audio_exts)
+        ]  
+
     payload = {
         "refer_wav_path": refer_gpt_sovits_path,
         "prompt_text": result.get("ref_text"),
@@ -66,7 +80,7 @@ def synthesise():
         "top_p": data.get("top_p", 1.0),
         "temperature": data.get("temperature", 1.0),
         "speed": data.get("speed", 1.0),
-        "inp_refs": result.get("extra_refs"),
+        "inp_refs": extra_refs,
         "sample_steps": data.get("sample_steps", 32),
         "if_sr": data.get("if_sr", False)
     }
@@ -85,7 +99,7 @@ def synthesise():
     if response.status_code == 200:
         with open(output_file, "wb") as f:
             f.write(response.content)
-        return jsonify({"output_file": output_file})
+        return send_file(output_file, mimetype="audio/mpeg", as_attachment=False)
     else:
         print(f"❌ Failed ({response.status_code}): {response.text}")
         return None
