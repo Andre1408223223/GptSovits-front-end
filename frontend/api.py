@@ -3,6 +3,7 @@ import json
 import os
 from flask import request, send_file
 import requests
+import re
 
 # Create a Blueprint for this file
 api_bp = Blueprint('api', __name__)
@@ -19,6 +20,21 @@ def get_model_info_by_name(data, target_name):
             }
     return None  # Not found
 
+def is_valid_audio_filename(filename):
+    # Allow only alphanumeric, underscores, dashes, dots; must end with valid audio extension
+    valid_audio_exts = ('.mp3', '.wav', '.ogg', '.flac', '.m4a')
+    if not filename:
+        return False
+    if not any(filename.lower().endswith(ext) for ext in valid_audio_exts):
+        return False
+    # Prevent directory traversal by disallowing slashes or backslashes
+    if '/' in filename or '\\' in filename:
+        return False
+    # Basic filename pattern check (no weird characters)
+    pattern = r'^[\w,\s-]+\.[A-Za-z]{3,4}$'  # e.g. output_01.mp3
+    if not re.match(pattern, filename):
+        return False
+    return True
 
 @api_bp.route("/synthesise", methods=["POST"])
 def synthesise():
@@ -26,54 +42,60 @@ def synthesise():
     json_path = os.path.join(script_dir, "models.json")
 
     data = request.get_json()
-
-    output_file = f"../models/{data.get('output_file')}"
+    if not data:
+        return jsonify({"error": "Invalid JSON data"}), 400
 
     model = data.get("model")
     if not model:
         return jsonify({"error": "No model specified"}), 400
 
+    infrence_text = data.get("infrance_text") or data.get("inference_text")
+    if not infrence_text:
+        return jsonify({"error": "Inference text missing"}), 400
+
+    output_file = data.get("output_file")
+    if not is_valid_audio_filename(output_file):
+        output_file = "output.mp3"
+
+    output_file_path = os.path.abspath(os.path.join(script_dir, "../models", output_file))
+
+    # Make sure the output directory exists
+    os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
     try:
         with open(json_path, "r") as f:
             model_data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Failed to load models.json: {str(e)}"}), 500
 
     result = get_model_info_by_name(model_data, model)
     if not result:
         return jsonify({"error": "Model not found"}), 404
 
-    infrance_text = data.get("infrance_text")
-    if not infrance_text:
-        return jsonify({"error": "Inference text missing"}), 400
-
+    # Language mapping
     lang_map = {"eng": "英文"}
     ref_language = lang_map.get(result.get("ref_language"), result.get("ref_language"))
     output_language = lang_map.get(data.get("output_language", "eng"))
 
-    # Transform path to gpt sovits path
     refer_audio_path = result.get("ref_audio")
-    refer_gpt_sovits_path = f"../models/{model}/{refer_audio_path}"    
-
+    refer_gpt_sovits_path = os.path.abspath(os.path.join(script_dir, "../models", model, refer_audio_path))
 
     extra_refs_dir = result.get("extra_refs_folder")
 
-    # Collect extra reference audio files
     supported_audio_exts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a']
     extra_refs = []
-    
     if extra_refs_dir and isinstance(extra_refs_dir, str) and os.path.exists(extra_refs_dir):
         extra_refs = [
-            os.path.join(extra_refs_dir, f)
+            os.path.abspath(os.path.join(extra_refs_dir, f))
             for f in os.listdir(extra_refs_dir)
             if os.path.isfile(os.path.join(extra_refs_dir, f)) and any(f.endswith(ext) for ext in supported_audio_exts)
-        ]  
+        ]
 
     payload = {
         "refer_wav_path": refer_gpt_sovits_path,
         "prompt_text": result.get("ref_text"),
         "prompt_language": ref_language,
-        "text": infrance_text,
+        "text": infrence_text,
         "text_language": output_language,
         "cut_punc": data.get("cut_punc", None),
         "top_k": data.get("top_k", 15),
@@ -89,17 +111,18 @@ def synthesise():
 
     try:
         response = requests.post("http://gpt-sovits-api:9880", headers=headers, data=json.dumps(payload), timeout=30)
+        response.raise_for_status()
     except requests.exceptions.Timeout:
-        print("❌ Request timed out")
-        return None, None
+        return jsonify({"error": "Synthesis API request timed out"}), 504
     except requests.exceptions.RequestException as e:
-        print(f"❌ Request failed: {e}")
-        return None, None
+        return jsonify({"error": f"Synthesis API request failed: {str(e)}"}), 502
 
-    if response.status_code == 200:
-        with open(output_file, "wb") as f:
-            f.write(response.content)
-        return send_file(output_file, mimetype="audio/mpeg", as_attachment=False)
-    else:
-        print(f"❌ Failed ({response.status_code}): {response.text}")
-        return None
+    with open(output_file_path, "wb") as f:
+        f.write(response.content)
+
+    return send_file(output_file_path, mimetype="audio/mpeg", as_attachment=False)
+
+@api_bp.route("/list_models",)
+def list_models():
+    models = os.listdir("../models")
+    return jsonify(models)
