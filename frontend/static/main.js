@@ -9,6 +9,21 @@ document.getElementById("toggleSettings").addEventListener("click", () => {
 document.getElementById("synthForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  // Create or show loading animation
+  let loading = document.querySelector(".loading-animation");
+  if (!loading) {
+    loading = document.createElement("div");
+    loading.className = "loading-animation";
+    loading.textContent = "Synthesizing audio...";
+    // Simple style for loading text; you can customize or replace with spinner CSS
+    loading.style.fontStyle = "italic";
+    loading.style.marginTop = "10px";
+    loading.style.color = "#555";
+    const form = document.getElementById("synthForm");
+    form.appendChild(loading);
+  }
+  loading.style.display = "block";
+
   const data = {
     model: document.getElementById("model").value,
     infrance_text: document.getElementById("inference_text").value,
@@ -45,12 +60,17 @@ document.getElementById("synthForm").addEventListener("submit", async (e) => {
     const blob = await response.blob();
     const audioUrl = URL.createObjectURL(blob);
 
+    // Hide loading animation
+    loading.style.display = "none";
+
+    // Remove existing play button if any
+    const existingButton = document.querySelector(".synth-play-button");
+    if (existingButton) existingButton.remove();
+
     // Create Play button
     const playButton = document.createElement("button");
     playButton.textContent = "▶ Play Synthesized Audio";
     playButton.className = "synth-play-button";
-
-    // Prevent form submission if clicked
     playButton.type = "button";
 
     // Insert the button after the form's submit button
@@ -66,5 +86,9 @@ document.getElementById("synthForm").addEventListener("submit", async (e) => {
   } catch (err) {
     console.error("Request failed:", err);
     alert("Error sending data.");
+  } finally {
+    // Always hide loading in case of error too
+    const loading = document.querySelector(".loading-animation");
+    if (loading) loading.style.display = "none";
   }
 });
