@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 import json
 import os
 from flask import request
+import requests
 
 # Create a Blueprint for this file
 api_bp = Blueprint('api', __name__)
@@ -26,6 +27,8 @@ def synthesise():
 
     data = request.get_json()
 
+    output_file = f"../models/{data.get('output_file')}"
+
     model = data.get("model")
     if not model:
         return jsonify({"error": "No model specified"}), 400
@@ -48,20 +51,41 @@ def synthesise():
     ref_language = lang_map.get(result.get("ref_language"), result.get("ref_language"))
     output_language = lang_map.get(data.get("output_language", "eng"))
 
+    # Transform path to gpt sovits path
+    refer_audio_path = result.get("ref_audio")
+    refer_gpt_sovits_path = f"../models/{model}/{refer_audio_path}"    
+
     payload = {
-        "refer_wav_path": result.get("ref_audio"),
+        "refer_wav_path": refer_gpt_sovits_path,
         "prompt_text": result.get("ref_text"),
         "prompt_language": ref_language,
         "text": infrance_text,
         "text_language": output_language,
-        "cut_punc": data.get("cut_punc", "15"),
-        "top_k": data.get("top_k", "1.0"),
-        "top_p": data.get("top_p", "1.0"),
-        "temperature": data.get("temperature", "1.0"),
-        "speed": data.get("speed", "1.0"),
+        "cut_punc": data.get("cut_punc", None),
+        "top_k": data.get("top_k", 15),
+        "top_p": data.get("top_p", 1.0),
+        "temperature": data.get("temperature", 1.0),
+        "speed": data.get("speed", 1.0),
         "inp_refs": result.get("extra_refs"),
         "sample_steps": data.get("sample_steps", 32),
         "if_sr": data.get("if_sr", False)
     }
 
-    return jsonify({"status": "ok", "data": payload})
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        response = requests.post("http://gpt-sovits-api:9880", headers=headers, data=json.dumps(payload), timeout=30)
+    except requests.exceptions.Timeout:
+        print("❌ Request timed out")
+        return None, None
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        return None, None
+
+    if response.status_code == 200:
+        with open(output_file, "wb") as f:
+            f.write(response.content)
+        return jsonify({"output_file": output_file})
+    else:
+        print(f"❌ Failed ({response.status_code}): {response.text}")
+        return None

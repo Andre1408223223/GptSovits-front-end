@@ -265,7 +265,8 @@
             model: document.getElementById("model").value,
             infrance_text: document.getElementById("inference_text").value,
             output_language: document.getElementById("output_language").value,
-            cut_punc: document.getElementById("punctuation").checked, // ✅ fixed typo: was ccut_punc
+            // cut_punc: document.getElementById("punctuation").checked,
+            cut_punc: null,
             top_k: parseFloat(document.getElementById("top_k").value),
             top_p: parseFloat(document.getElementById("top_p").value),
             temperature: parseFloat(
@@ -279,6 +280,7 @@
             output_file: document.getElementById("output_file").value,
           };
 
+          console.log(data);
           try {
             const response = await fetch("/synthesise", {
               method: "POST",

@@ -26,6 +26,8 @@ if [ ! -f /opt/gpt-installed.flag ]; then
     rm -rf /app/GPT_SoVITS/pretrained_models
     git clone https://huggingface.co/lj1995/GPT-SoVITS /app/GPT_SoVITS/pretrained_models
 
+    python3 -m nltk.downloader averaged_perceptron_tagger_eng
+
     # Pull Git LFS files
     cd /app/GPT_SoVITS/pretrained_models
     git lfs pull

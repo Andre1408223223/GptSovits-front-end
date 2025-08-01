@@ -9,6 +9,8 @@ services:
     tty: true
     networks:
       - gpt-sovits-net
+    volumes:
+      - ./models:/models
 
   gpt-sovits-frontend:
     build:
@@ -19,9 +21,11 @@ services:
       - API_URL=http://gpt-sovits-api:9880
     networks:
       - gpt-sovits-net
+    volumes:
+      - ./models:/models
 
 volumes:
-  gpt-sovits-api-data:
+  shared-audio:
 
 networks:
   gpt-sovits-net:
