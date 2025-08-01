@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  gpt-sovits-api:
+    build:
+      context: ./api
+    expose:
+      - "9880"
+    tty: true
+    networks:
+      - gpt-sovits-net
+
+  gpt-sovits-frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:5000"
+    environment:
+      - API_URL=http://gpt-sovits-api:9880
+    networks:
+      - gpt-sovits-net
+
+volumes:
+  gpt-sovits-api-data:
+
+networks:
+  gpt-sovits-net:
+    driver: bridge
