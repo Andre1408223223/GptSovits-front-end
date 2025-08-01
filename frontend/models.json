@@ -1,0 +1,12 @@
+{
+  "models_dir": "../tts_models",
+  "models": [
+    {
+      "name": "Hu Tao",
+      "ref_audio": "ref_audio.ogg",
+      "ref_text": "Hu as in Who put me in this coffin? and Tao as in I can't geT OUt! Hehe... No, not funny?",
+      "ref_language": "eng",
+      "extra_refs": []
+    }
+  ]
+}
