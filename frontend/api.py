@@ -80,7 +80,7 @@ def synthesise():
     refer_audio_path = result.get("ref_audio")
     refer_gpt_sovits_path = os.path.abspath(os.path.join(script_dir, "../models", model, refer_audio_path))
 
-    extra_refs_dir = result.get("extra_refs_folder")
+    extra_refs_dir = os.path.abspath(os.path.join(script_dir, "../models", model, "extra_refs"))
 
     supported_audio_exts = ['.mp3', '.wav', '.ogg', '.flac', '.m4a']
     extra_refs = []
