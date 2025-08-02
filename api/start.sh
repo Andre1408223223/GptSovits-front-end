@@ -20,11 +20,12 @@ if [ ! -f /opt/gpt-installed.flag ]; then
     # replace broken api ref call
     python3 -c "path='/app/api.py'; lines=open(path).readlines(); lines=[l.replace('path.name', 'path') if 'refer, audio_tensor = get_spepc(hps, path.name, dtype, device, is_v2pro)' in l else l for l in lines]; open(path, 'w').writelines(lines)"
 
-
     # Install python dependencies inside conda env
     pip install --upgrade pip
     pip install --no-cache-dir -r /app/extra-req.txt
     pip install --no-cache-dir -r /app/requirements.txt
+
+    python3 -c "import nltk; nltk.download('averaged_perceptron_tagger_eng')"
 
     # Clone pretrained models
     rm -rf /app/GPT_SoVITS/pretrained_models
