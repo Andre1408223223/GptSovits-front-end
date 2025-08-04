@@ -10,7 +10,7 @@ services:
     networks:
       - gpt-sovits-net
     volumes:
-      - ./models:/models
+      - ./Gpt Sovits/models:/app/models
 
   gpt-sovits-frontend:
     build:
@@ -22,7 +22,7 @@ services:
     networks:
       - gpt-sovits-net
     volumes:
-      - ./models:/models
+      - ./Gpt Sovits/models:/app/models
 
 volumes:
   shared-audio:

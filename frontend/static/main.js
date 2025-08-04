@@ -5,90 +5,76 @@ document.getElementById("toggleSettings").addEventListener("click", () => {
   settings.style.display = isVisible ? "none" : "block";
 });
 
-// ✅ Form submit handler
-document.getElementById("synthForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  // Create or show loading animation
+function loading_animation(mode) {
   let loading = document.querySelector(".loading-animation");
+
   if (!loading) {
     loading = document.createElement("div");
     loading.className = "loading-animation";
     loading.textContent = "Synthesizing audio...";
-    // Simple style for loading text; you can customize or replace with spinner CSS
     loading.style.fontStyle = "italic";
     loading.style.marginTop = "10px";
     loading.style.color = "#555";
     const form = document.getElementById("synthForm");
     form.appendChild(loading);
   }
-  loading.style.display = "block";
 
+  if (mode) {
+    loading.style.display = "block";
+  } else {
+    loading.style.display = "none";
+  }
+}
+
+function prepare_data() {
   const data = {
     model: document.getElementById("model").value,
-    infrance_text: document.getElementById("inference_text").value,
-    output_language: document.getElementById("output_language").value,
-    cut_punc: document.getElementById("punctuation").checked
-      ? [",", ".", ";", "?", "!", "、", "，", "。", "？", "！", "；", "：", "…"]
-      : null,
+    infer_text: document.getElementById("text").value,
 
-    top_k: parseFloat(document.getElementById("top_k").value),
+    text_split_method: document.getElementById("text_split_method").value,
+    batch_size: parseInt(document.getElementById("batch_size").value),
+    batch_threshold: parseFloat(
+      document.getElementById("batch_threshold").value
+    ),
+    split_bucket: document.getElementById("split_bucket").checked,
+
+    speed_factor: parseFloat(document.getElementById("speed_factor").value),
+    streaming_mode: document.getElementById("streaming_mode").checked,
+    seed: parseInt(document.getElementById("seed").value),
+    parallel_infer: document.getElementById("parallel_infer").checked,
+
+    repetition_penalty: parseFloat(
+      document.getElementById("repetition_penalty").value
+    ),
+    top_k: parseInt(document.getElementById("top_k").value),
     top_p: parseFloat(document.getElementById("top_p").value),
     temperature: parseFloat(document.getElementById("temperature").value),
-    speed: parseFloat(document.getElementById("speed_setting").value),
+
     sample_steps: parseInt(document.getElementById("sample_steps").value),
-    if_sr: document.getElementById("if_sr").checked,
+    super_sampling: document.getElementById("super_sampling").checked,
+
     output_file: document.getElementById("output_file").value,
   };
 
-  try {
-    const response = await fetch("/synthesise", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+  return data;
+}
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Server error:", errorText);
-      alert("Server error: " + errorText);
-      return;
-    }
+function generate_tts() {
+  // Create or show loading animation
+  loading_animation(true);
 
-    const blob = await response.blob();
-    const audioUrl = URL.createObjectURL(blob);
+  data = prepare_data();
 
-    // Hide loading animation
-    loading.style.display = "none";
-
-    // Remove existing play button if any
-    const existingButton = document.querySelector(".synth-play-button");
-    if (existingButton) existingButton.remove();
-
-    // Create Play button
-    const playButton = document.createElement("button");
-    playButton.textContent = "▶ Play Synthesized Audio";
-    playButton.className = "synth-play-button";
-    playButton.type = "button";
-
-    // Insert the button after the form's submit button
-    const form = document.getElementById("synthForm");
-    const submitButton = form.querySelector('input[type="submit"]');
-    submitButton.insertAdjacentElement("afterend", playButton);
-
-    // Create and control audio playback
-    const audio = new Audio(audioUrl);
-    playButton.addEventListener("click", () => {
-      audio.play();
-    });
-  } catch (err) {
-    console.error("Request failed:", err);
-    alert("Error sending data.");
-  } finally {
-    // Always hide loading in case of error too
-    const loading = document.querySelector(".loading-animation");
-    if (loading) loading.style.display = "none";
+  if (document.getElementById("streaming_mode").checked) {
+    console.log("Streaming mode is enabled.");
+  } else {
+    console.log("Streaming mode is disabled.");
   }
+
+  loading_animation(false);
+}
+
+document.getElementById("synthForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  generate_tts();
 });

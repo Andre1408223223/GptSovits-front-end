@@ -18,14 +18,8 @@
         <option value="Hu Tao">Hu Tao</option>
       </select>
 
-      <label for="inference_text">Inference Text:</label>
-      <input
-        type="text"
-        required
-        name="inference_text"
-        id="inference_text"
-        value=""
-      />
+      <label for="text">Inference Text:</label>
+      <input type="text" required name="text" id="text" value="" />
 
       <!-- Extra Settings Toggle -->
       <button
@@ -41,21 +35,80 @@
       <div class="settings" id="extraSettings">
         <h3>Extra Settings</h3>
 
-        <label for="output_language">Output Language:</label>
+        <label for="text_split_method">Text Split Method:</label>
         <input
           type="text"
-          id="output_language"
-          name="output_language"
-          value="eng"
+          id="text_split_method"
+          name="text_split_method"
+          value="cut0"
+        />
+
+        <label for="batch_size">Batch Size:</label>
+        <input
+          type="number"
+          id="batch_size"
+          name="batch_size"
+          min="1"
+          value="1"
+        />
+
+        <label for="batch_threshold">Batch Threshold:</label>
+        <input
+          type="number"
+          id="batch_threshold"
+          name="batch_threshold"
+          step="0.01"
+          value="0.75"
         />
 
         <div class="field">
-          <input type="checkbox" id="punctuation" name="punctuation" />
-          <label for="punctuation">Enable Punctuation</label>
+          <input
+            type="checkbox"
+            id="split_bucket"
+            name="split_bucket"
+            checked
+          />
+          <label for="split_bucket">Split Bucket</label>
         </div>
 
+        <label for="speed_factor">Speed Factor:</label>
+        <input
+          type="number"
+          id="speed_factor"
+          name="speed_factor"
+          step="0.1"
+          value="1.0"
+        />
+
+        <div class="field">
+          <input type="checkbox" id="streaming_mode" name="streaming_mode" />
+          <label for="streaming_mode">Enable Streaming Mode</label>
+        </div>
+
+        <label for="seed">Seed:</label>
+        <input type="number" id="seed" name="seed" value="-1" />
+
+        <div class="field">
+          <input
+            type="checkbox"
+            id="parallel_infer"
+            name="parallel_infer"
+            checked
+          />
+          <label for="parallel_infer">Use Parallel Inference</label>
+        </div>
+
+        <label for="repetition_penalty">Repetition Penalty:</label>
+        <input
+          type="number"
+          id="repetition_penalty"
+          name="repetition_penalty"
+          step="0.01"
+          value="1.35"
+        />
+
         <label for="top_k">Top K:</label>
-        <input type="number" id="top_k" name="top_k" min="0" value="15" />
+        <input type="number" id="top_k" name="top_k" min="0" value="5" />
 
         <label for="top_p">Top P:</label>
         <input
@@ -78,15 +131,6 @@
           value="1"
         />
 
-        <label for="speed_setting">Speed:</label>
-        <input
-          type="number"
-          id="speed_setting"
-          name="speed"
-          step="0.1"
-          value="1.0"
-        />
-
         <label for="sample_steps">Sample Steps:</label>
         <input
           type="number"
@@ -97,8 +141,8 @@
         />
 
         <div class="field">
-          <input type="checkbox" id="if_sr" name="if_sr" />
-          <label for="if_sr">Use Sample Rate Conversion</label>
+          <input type="checkbox" id="super_sampling" name="super_sampling" />
+          <label for="super_sampling">Use Super Sampling</label>
         </div>
 
         <label for="output_file">Output File:</label>
