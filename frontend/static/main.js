@@ -27,51 +27,102 @@ function loading_animation(mode) {
 }
 
 function prepare_data() {
+  // Helper to safely get element by id and return null if not found
+  const getEl = (id) => document.getElementById(id);
+
+  // Helper to parse int safely, fallback to default if invalid
+  const parseIntSafe = (value, def = 0) => {
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? def : parsed;
+  };
+
+  // Helper to parse float safely, fallback to default if invalid
+  const parseFloatSafe = (value, def = 0) => {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? def : parsed;
+  };
+
   const data = {
-    model: document.getElementById("model").value,
-    infer_text: document.getElementById("text").value,
+    model: getEl("model")?.value || "",
+    infer_text: getEl("text")?.value || "",
 
-    text_split_method: document.getElementById("text_split_method").value,
-    batch_size: parseInt(document.getElementById("batch_size").value),
-    batch_threshold: parseFloat(
-      document.getElementById("batch_threshold").value
-    ),
-    split_bucket: document.getElementById("split_bucket").checked,
+    text_split_method: getEl("text_split_method")?.value || "",
+    batch_size: parseIntSafe(getEl("batch_size")?.value, 1),
+    batch_threshold: parseFloatSafe(getEl("batch_threshold")?.value, 0),
 
-    speed_factor: parseFloat(document.getElementById("speed_factor").value),
-    streaming_mode: document.getElementById("streaming_mode").checked,
-    seed: parseInt(document.getElementById("seed").value),
-    parallel_infer: document.getElementById("parallel_infer").checked,
+    split_bucket: getEl("split_bucket")?.checked || false,
 
-    repetition_penalty: parseFloat(
-      document.getElementById("repetition_penalty").value
-    ),
-    top_k: parseInt(document.getElementById("top_k").value),
-    top_p: parseFloat(document.getElementById("top_p").value),
-    temperature: parseFloat(document.getElementById("temperature").value),
+    speed_factor: parseFloatSafe(getEl("speed_factor")?.value, 1),
+    streaming_mode: getEl("streaming_mode")?.checked || false,
+    seed: parseIntSafe(getEl("seed")?.value, 0),
+    parallel_infer: getEl("parallel_infer")?.checked || false,
 
-    sample_steps: parseInt(document.getElementById("sample_steps").value),
-    super_sampling: document.getElementById("super_sampling").checked,
+    repetition_penalty: parseFloatSafe(getEl("repetition_penalty")?.value, 1),
+    top_k: parseIntSafe(getEl("top_k")?.value, 0),
+    top_p: parseFloatSafe(getEl("top_p")?.value, 1),
+    temperature: parseFloatSafe(getEl("temperature")?.value, 1),
 
-    output_file: document.getElementById("output_file").value,
+    sample_steps: parseIntSafe(getEl("sample_steps")?.value, 1),
+    super_sampling: getEl("super_sampling")?.checked || false,
+
+    output_file: getEl("output_file")?.value || "",
   };
 
   return data;
 }
 
-function generate_tts() {
-  // Create or show loading animation
+async function generate_tts() {
   loading_animation(true);
 
-  data = prepare_data();
+  const data = prepare_data();
 
-  if (document.getElementById("streaming_mode").checked) {
-    console.log("Streaming mode is enabled.");
-  } else {
-    console.log("Streaming mode is disabled.");
+  try {
+    const response = await fetch("/synthesise", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.statusText}`);
+    }
+
+    // Get binary audio data as a Blob
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    // Clear previous buttons or audio
+    const container = document.getElementById("audioContainer");
+    container.innerHTML = "";
+
+    // Create the play button
+    const playButton = document.createElement("button");
+    playButton.className = "synth-play-button";
+    playButton.textContent = "Play Audio";
+
+    // Create audio element but keep it hidden (or you can skip adding it to DOM)
+    const audio = new Audio(audioUrl);
+
+    // When button is clicked, play the audio
+    playButton.addEventListener("click", () => {
+      audio.play();
+    });
+
+    // Append the play button to the container
+    container.appendChild(playButton);
+
+    // Optionally, clean up the URL after audio ends
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+    };
+  } catch (error) {
+    console.error("Error generating TTS:", error);
+    alert("Failed to generate TTS: " + error.message);
+  } finally {
+    loading_animation(false);
   }
-
-  loading_animation(false);
 }
 
 document.getElementById("synthForm").addEventListener("submit", async (e) => {
