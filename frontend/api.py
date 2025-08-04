@@ -43,9 +43,29 @@ def list_models():
     return jsonify(models)
 
 
-@api_bp.route("/synthesise_stream", methods=["POST"])
-def synthesise_stream():
-    pass
+def return_audio(payload, output_file="output.wav"):
+    headers = {"Content-Type": "application/json"}
+
+    streamin_mode = payload.get("streaming_mode")
+
+    if streamin_mode:
+        return "Stream mode is not supported"
+    else:
+        try:
+            response = requests.post("http://gpt-sovits-api:9880/tts", headers=headers, data=json.dumps(payload), timeout=120)
+            response.raise_for_status()
+
+        except requests.exceptions.Timeout:
+            return jsonify({"error": "Synthesis API request timed out"}), 504
+        except requests.exceptions.RequestException as e:
+            return jsonify({"error": f"Synthesis API request failed: {str(e)}"}), 502    
+        
+
+        with open(output_file, "wb") as f:
+            f.write(response.content)
+
+        return send_file(output_file, mimetype="audio/mpeg", as_attachment=False)    
+
 
 @api_bp.route("/synthesise", methods=["POST"])
 def synthesise():
@@ -159,33 +179,4 @@ def synthesise():
      "super_sampling": super_sampling
      }
     
-    headers = {"Content-Type": "application/json"}
-
-    try:
-        response = requests.post(
-            "http://gpt-sovits-api:9880/tts",
-            headers=headers,
-            data=json.dumps(payload),
-            timeout=60,
-            stream=True
-        )
-
-        if response.status_code == 200:
-            with open(output_file, "wb") as f:
-                for chunk in response.iter_content(chunk_size=4096):
-                    if chunk:
-                        f.write(chunk)
-            print("✅ Audio saved")
-            return send_file(output_file, mimetype="audio/wav", as_attachment=True)
-
-        else:
-            print(f"❌ Failed ({response.status_code}): {response.text}")
-            return jsonify({"error": "Bad response", "status_code": response.status_code}), 500
-
-    except requests.exceptions.Timeout:
-        print("❌ Request timed out")
-        return jsonify({"error": "Request timed out"}), 504
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Request failed: {e}")
-        return jsonify({"error": str(e)}), 502 
+    return return_audio(payload, output_file)
