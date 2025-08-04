@@ -52,7 +52,8 @@ def synthesise():
     # get the params
     data = request.get_json()
 
-    model =               data.get("model", "Hu Tao")                     # (required) str: text to be synthesized  
+    model =               data.get("model", "Hu Tao")                     # (optional) str: text to be synthesized  
+    output_lan  =         data.get("output_lan", "en")                    # (optional) str: output language
     infer_text =          data.get("infer_text", None)                    # (required) str: language of the text to be synthesized  
            
     top_k =               data.get("top_k", 5)                            # (optional) int: top-k sampling  
@@ -66,14 +67,19 @@ def synthesise():
            
     speed_factor =        float(data.get("speed_factor", 1.0))            # (optional) float: control the speed of the synthesized audio  
     streaming_mode =      data.get("streaming_mode", False)               # (optional) bool: whether to return a streaming response  
+    fragment_interval =   float(data.get("fragment_interval", 0.3))       # (optional) float. to control the interval of the audio fragment.
     seed =                data.get("seed", -1)                            # (optional) int: random seed for reproducibility  
     parallel_infer =      data.get("parallel_infer", True)                # (optional) bool: whether to use parallel inference  
     repetition_penalty =  float(data.get("repetition_penalty", 1.35))     # (optional) float: repetition penalty for T2S model  
     sample_steps =        data.get("sample_steps", 32)                    # (optional) int: number of sampling steps for VITS model V3  
     super_sampling =      data.get("super_sampling", False)               # (optional) bool: whether to use super-sampling for audio when using VITS model V3  
     output_file =         data.get("output_file", "output.wav")           # (optional) str: output file name
+    
 
     errors = []
+
+    # format output file to wav
+    output_file = os.path.splitext(os.path.basename("output.mp3"))[0] + ".wav"
 
     # get model data
     model_path      =   os.path.join("models", model)
@@ -110,13 +116,15 @@ def synthesise():
      (split_bucket, bool, "split_bucket must be a boolean"),
      (speed_factor, float, "speed_factor must be a float"),
      (streaming_mode, bool, "streaming_mode must be a boolean"),
+     (fragment_interval, float, "fragment_interval must be a float"),
      (seed, int, "seed must be an integer"),
      (parallel_infer, bool, "parallel_infer must be a boolean"),
      (repetition_penalty, float, "repetition_penalty must be a float"),
      (sample_steps, int, "sample_steps must be an integer"),
      (super_sampling, bool, "super_sampling must be a boolean"),
      (output_file, str, "output_file must be a string"),
-     ]
+     (output_lan, str, "output_lan must be a string"),
+    ]
 
     for var, expected_type, message in type_checks:
      if type(var) is not expected_type:
@@ -124,35 +132,60 @@ def synthesise():
 
     extra_refs_dir = os.path.join("models", model, "extra_refs")
     extra_refs = [os.path.join(extra_refs_dir, f) for f in os.listdir(extra_refs_dir) if os.path.isfile(os.path.join(extra_refs_dir, f)) and any(f.endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.flac', '.m4a'])] if os.path.exists(extra_refs_dir) else []
-    
+
     if errors:
      return errors
-
+    
     payload = {
-        "model":                model,               # str.(required) text to be synthesized
-        "text":                 infer_text,          # str.(required) language of the text to be synthesized
-        "ref_audio_path":       ref_audio_path,      # str.(required) reference audio path
-        "aux_ref_audio_paths":  extra_refs,          # list.(optional) auxiliary reference audio paths for multi-speaker tone fusion
-        "prompt_text":          ref_audio_text,      # str.(optional) prompt text for the reference audio
-        "prompt_lang":          ref_audio_lang,      # str.(required) language of the prompt text for the reference audio
-       
-        "top_k":                top_k,               # int. top k sampling
-        "top_p":                top_p,               # float. top p sampling
-        "temperature":          temperature,         # float. temperature for sampling
-       
-        "text_split_method":    text_split_method,   # str. text split method, see text_segmentation_method.py for details.
-        "batch_size":           batch_size,          # int. batch size for inference
- 
-        "batch_threshold":      batch_threshold,     # float. threshold for batch splitting.
-        "split_bucket":         split_bucket,        # bool. whether to split the batch into multiple buckets.
-     
-        "speed_factor":         speed_factor,        # float. control the speed of the synthesized audio.
-        "streaming_mode":       streaming_mode,      # bool. whether to return a streaming response.
-        "seed":                 seed,                # int. random seed for reproducibility.
-        "parallel_infer":       parallel_infer,      # bool. whether to use parallel inference.
-        "repetition_penalty":   repetition_penalty,  # float. repetition penalty for T2S model.
-        "sample_steps":         sample_steps,        # int. number of sampling steps for VITS model V3.
-        "super_sampling":       super_sampling      # bool. whether to use super-sampling for audio when using VITS model V3.
-    }
+     "text": infer_text,
+     "text_lang": output_lan,
+     "ref_audio_path": f"/app/{ref_audio_path}",
+     "aux_ref_audio_paths": extra_refs,
+     "prompt_text": ref_audio_text,
+     "prompt_lang": ref_audio_lang,
+     "top_k": top_k,
+     "top_p": top_p,
+     "temperature": temperature,
+     "text_split_method": text_split_method,
+     "batch_size": batch_size,
+     "batch_threshold": batch_threshold,
+     "split_bucket": split_bucket,
+     "speed_factor": speed_factor,
+     "streaming_mode": streaming_mode,
+     "seed": seed,
+     "parallel_infer": parallel_infer,
+     "repetition_penalty": repetition_penalty,
+     "sample_steps": sample_steps,
+     "super_sampling": super_sampling
+     }
+    
+    headers = {"Content-Type": "application/json"}
 
-    return payload
+    try:
+        response = requests.post(
+            "http://gpt-sovits-api:9880/tts",
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=60,
+            stream=True
+        )
+
+        if response.status_code == 200:
+            with open(output_file, "wb") as f:
+                for chunk in response.iter_content(chunk_size=4096):
+                    if chunk:
+                        f.write(chunk)
+            print("✅ Audio saved")
+            return send_file(output_file, mimetype="audio/wav", as_attachment=True)
+
+        else:
+            print(f"❌ Failed ({response.status_code}): {response.text}")
+            return jsonify({"error": "Bad response", "status_code": response.status_code}), 500
+
+    except requests.exceptions.Timeout:
+        print("❌ Request timed out")
+        return jsonify({"error": "Request timed out"}), 504
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        return jsonify({"error": str(e)}), 502 
