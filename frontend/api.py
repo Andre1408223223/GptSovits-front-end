@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 import json
 import os
-from flask import request, send_file
+from flask import request, send_file, Response
 import requests
 import re
 import glob
@@ -45,26 +45,31 @@ def list_models():
 
 def return_audio(payload, output_file="output.wav"):
     headers = {"Content-Type": "application/json"}
-
     streamin_mode = payload.get("streaming_mode")
 
+    
+    
+    try:
+        response = requests.post("http://gpt-sovits-api:9880/tts", headers=headers, data=json.dumps(payload), timeout=120)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        return jsonify({"error": "Synthesis API request timed out"}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Synthesis API request failed: {str(e)}"}), 502    
+    
     if streamin_mode:
-        return "Stream mode is not supported"
+        return jsonify({"streaming_mode": streamin_mode})
+        def generate_audio_stream():
+            for chunk in response.iter_content(chunk_size=4096):
+                if chunk:
+                    yield chunk
+
+        return Response(generate_audio_stream(), mimetype="audio/wav")
     else:
-        try:
-            response = requests.post("http://gpt-sovits-api:9880/tts", headers=headers, data=json.dumps(payload), timeout=120)
-            response.raise_for_status()
-
-        except requests.exceptions.Timeout:
-            return jsonify({"error": "Synthesis API request timed out"}), 504
-        except requests.exceptions.RequestException as e:
-            return jsonify({"error": f"Synthesis API request failed: {str(e)}"}), 502    
-        
-
-        with open(output_file, "wb") as f:
-            f.write(response.content)
-
-        return send_file(output_file, mimetype="audio/mpeg", as_attachment=False)    
+     with open(output_file, "wb") as f:
+         f.write(response.content)
+         
+     return send_file(output_file, mimetype="audio/mpeg", as_attachment=False)    
 
 
 @api_bp.route("/synthesise", methods=["POST"])
@@ -151,7 +156,13 @@ def synthesise():
         errors.append(message) 
 
     extra_refs_dir = os.path.join("models", model, "extra_refs")
-    extra_refs = [os.path.join(extra_refs_dir, f) for f in os.listdir(extra_refs_dir) if os.path.isfile(os.path.join(extra_refs_dir, f)) and any(f.endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.flac', '.m4a'])] if os.path.exists(extra_refs_dir) else []
+
+    extra_refs = [
+        os.path.join("/app", os.path.relpath(os.path.join(extra_refs_dir, f), start="."))
+        for f in os.listdir(extra_refs_dir)
+        if os.path.isfile(os.path.join(extra_refs_dir, f)) and any(f.endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.flac', '.m4a'])
+    ] if os.path.exists(extra_refs_dir) else []
+
 
     if errors:
      return errors
