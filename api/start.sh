@@ -11,6 +11,10 @@ conda activate gpt
 if [ ! -f /app/shared/gpt-installed.flag ]; then
     echo "Installing GPT-SoVITS..."
 
+    # Upgrade pip and install PyTorch with CUDA
+    pip install --upgrade pip
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
     # Clone GPT-SoVITS repo
     git clone https://github.com/RVC-Boss/GPT-SoVITS.git /app/GPT-SoVITS
 
@@ -20,7 +24,6 @@ if [ ! -f /app/shared/gpt-installed.flag ]; then
     python3 -c "path='/app/GPT-SoVITS/api_v2.py'; lines=open(path).readlines(); lines=[line.replace('host=host', 'host=\"0.0.0.0\"') if 'uvicorn.run(' in line and 'host=host' in line else line for line in lines]; open(path,'w').writelines(lines)"
 
     # Install python dependencies inside conda env
-    pip install --upgrade pip
     pip install --no-cache-dir -r /app/GPT-SoVITS/extra-req.txt
     pip install --no-cache-dir -r /app/GPT-SoVITS/requirements.txt
 
