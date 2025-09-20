@@ -3,11 +3,18 @@ This is the frontend code for GPT Sovits. It also automatically installs GPT Sov
 
 **requrments**
 Docker
-DOkcer compose
+Dokcer compose
+Cuda in wsl 
 
 **installation**
 Simply navigate to the GptSovits-front-end directory, then run:
 docker compose up
+
+to chek if you have cude in wsl run 
+nvidia-smi
+
+if you see your gpu cuda is working if not please install cuda 
+
 
 **Installing Different Models**
 The frontend code does not update automatically yet. To add a new model:
